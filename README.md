@@ -11,15 +11,15 @@ Most resumes are either poorly optimized or not tailored for specific job descri
 Develop a responsive web-based AI-powered resume evaluation tool. Extract and analyze resume content (skills, education, experience). Match resumes with job descriptions using NLP techniques. Provide grammar, formatting, and keyword optimization feedback. Generate downloadable reports and resume score breakdowns. 
 
 # 4. Technology Stack
-Frontend:- HTML, CSS, Bootstrap- JavaScript (React.js)
-Backend:- Python (Flask)
-NLP Libraries: spaCy, NLTK
+## Frontend:- HTML, CSS, Bootstrap- JavaScript (React.js)
+## Backend:- Python (Flask)
+## NLP Libraries: spaCy, NLTK
         - AI: OpenAI/GPT API for smart suggestions
         - Parsing: PyPDF2, python-docx
- Database & Storage:
+## Database & Storage:
         - MySQL
         - Cloud Storage (Firebase)
- Authentication & Security: - JWT (JSON Web Token)
+## Authentication & Security: - JWT (JSON Web Token)
 
 
 # 5. Key Features
