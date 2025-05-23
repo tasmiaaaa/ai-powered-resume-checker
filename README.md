@@ -1,2 +1,8 @@
-# ai-powered-resume-checker
+# AI Powered Resume Checker
+
+
+## Developed by 
+- Tasmia Hussain
+- Shila Rani Deb Mitu
+  
 
