@@ -60,9 +60,9 @@ Week 6: Deployment & Final Review: Deploy to Render, final testing & documentati
 
 # 9. Conclusion 
 The AI-Based Resume Checker provides an innovative solution to a widespread problem in job applications. By combining resume parsing, NLP, and AI, the system guides users in creating better resumes that increase their chances of getting shortlisted. With scalable architecture and potential for future enhancements, this project is a valuable tool for modern job seekers. 
-# Dataset
+
+# Dataset and its Description: 
 The project uses ResumeDataSet
-Dataset Description: Resume Dataset
 Number of Entries: 962
 Number of Columns: 2
 Columns:
