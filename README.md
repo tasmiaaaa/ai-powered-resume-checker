@@ -78,7 +78,9 @@ Resume – The full textual content of the resume, including details like skills
 
 
 
-Use Cases
+Use Cases:
+
+
 This dataset is suitable for:
 Resume classification (e.g., using NLP or machine learning techniques)
 Keyword extraction and skill matching
