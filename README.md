@@ -63,11 +63,21 @@ The AI-Based Resume Checker provides an innovative solution to a widespread prob
 
 # Dataset and its Description: 
 The project uses ResumeDataSet
+
+
   Number of Entries: 962
+  
+  
   Number of Columns: 2
 # Columns:
 Category – The job category or domain the resume is associated with (e.g., Data Science, HR, Advocate).
+
+
+
 Resume – The full textual content of the resume, including details like skills, education, work experience, and interests.
+
+
+
 Use Cases
 This dataset is suitable for:
 Resume classification (e.g., using NLP or machine learning techniques)
