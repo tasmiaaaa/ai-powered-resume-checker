@@ -61,6 +61,36 @@ Week 6: Deployment & Final Review: Deploy to Render, final testing & documentati
 # 9. Conclusion 
 The AI-Based Resume Checker provides an innovative solution to a widespread problem in job applications. By combining resume parsing, NLP, and AI, the system guides users in creating better resumes that increase their chances of getting shortlisted. With scalable architecture and potential for future enhancements, this project is a valuable tool for modern job seekers. 
 
+# Dataset and its Description: 
+The project uses ResumeDataSet
+
+
+  Number of Entries: 962
+  
+  
+  Number of Columns: 2
+# Columns:
+Category – The job category or domain the resume is associated with (e.g., Data Science, HR, Advocate).
+
+
+
+Resume – The full textual content of the resume, including details like skills, education, work experience, and interests.
+
+
+
+Use Cases:
+
+
+This dataset is suitable for:
+Resume classification (e.g., using NLP or machine learning techniques)
+Keyword extraction and skill matching
+Career path prediction or job recommendation systems
+Text summarization and semantic analysis of resumes
+# Dataset link:
+https://www.kaggle.com/datasets/gauravduttakiit/resume-dataset
+
+# Model Architecture
+We are using KNeighborsClassifier,SVC model and RandomForestClassifier for this project.
 
 
 
