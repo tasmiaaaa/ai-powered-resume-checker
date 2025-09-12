@@ -94,6 +94,38 @@ def create_user(username, email, password):
         return False
 
 
+def delete_user_account(user_id, password):
+    """Delete user account and associated sessions from the database"""
+    try:
+        # Verify user credentials before deletion
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT password_hash FROM users 
+            WHERE id = ?
+        ''', (user_id,))
+        user = cursor.fetchone()
+        if user and verify_password(password, user[0]):
+            # Delete user sessions
+            cursor.execute('''
+                DELETE FROM user_sessions 
+                WHERE user_id = ?
+            ''', (user_id,))
+            # Delete user account
+            cursor.execute('''
+                DELETE FROM users 
+                WHERE id = ?
+            ''', (user_id,))
+            conn.commit()
+            conn.close()
+            return True
+        else:
+            conn.close()
+            return False
+    except Exception as e:
+        st.error(f"Error deleting account: {str(e)}")
+        return False
+
 def authenticate_user(username, password):
     """Authenticate user login credentials"""
     conn = sqlite3.connect('users.db')
@@ -108,6 +140,25 @@ def authenticate_user(username, password):
     if user and verify_password(password, user[2]):
         return {"id": user[0], "username": user[1]}
     return None
+
+
+def update_user_password(user_id, new_password):
+    """Update user's password in the database"""
+    try:
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        hashed_password = hash_password(new_password)
+        cursor.execute('''
+            UPDATE users
+            SET password_hash = ?
+            WHERE id = ?
+        ''', (hashed_password, user_id))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error updating password: {str(e)}")
+        return False
 
 
 def save_user_session(user_id, resume_category, analysis_score):
@@ -421,6 +472,56 @@ def search_jobs_api(keywords: str, location: str = "", results_per_page: int = 1
         return {"error": f"Error fetching jobs: {str(e)}"}
 
 
+def generate_interview_questions(job_title: str, job_description: str, include_answers: bool) -> Dict[str, Any]:
+    """Generate 10-15 interview questions (and optionally answers) using Gemini AI"""
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+
+        # Create prompt with clear JSON structure
+        prompt = f"""
+        You are an expert HR professional and interview coach. Generate 10-15 random interview questions for a {job_title} position.
+        {'Use the following job description to tailor the questions:' if job_description.strip() else 'No job description provided, generate general questions for the role.'}
+        {job_description if job_description.strip() else ''}
+
+        Provide the output as valid JSON only (no extra text or markdown):
+        {{
+            "questions": [
+                {{"question": "Question text"{", \"answer\": \"Answer text\"" if include_answers else ""},
+                {{"question": "Question text"{", \"answer\": \"Answer text\"" if include_answers else ""},
+                ...
+            ]
+        }}
+        Ensure each question is relevant to the job title and, if provided, the job description.
+        {"Include a concise, professional answer for each question." if include_answers else "Do not include answers, only questions."}
+        """
+
+        response = model.generate_content(prompt)
+
+        if not response or not response.text:
+            st.error("No response received from AI")
+            return {"questions": []}
+
+        # Parse the JSON response
+        try:
+            cleaned_text = response.text.strip()
+            if cleaned_text.startswith('```json'):
+                cleaned_text = cleaned_text[7:]
+            if cleaned_text.startswith('```'):
+                cleaned_text = cleaned_text[3:]
+            if cleaned_text.endswith('```'):
+                cleaned_text = cleaned_text[:-3]
+            cleaned_text = cleaned_text.strip()
+
+            result = json.loads(cleaned_text)
+            return result
+        except json.JSONDecodeError as e:
+            st.error(f"Failed to parse AI response: {str(e)}")
+            return {"questions": []}
+
+    except Exception as e:
+        st.error(f"Error generating interview questions: {str(e)}")
+        return {"questions": []}
+
 def display_score_with_status(score: int):
     """Display resume score with color-coded status"""
     if score >= 80:
@@ -454,8 +555,7 @@ def main_app():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Main navigation tabs
-    tab1, tab2, tab3 = st.tabs(["📄 Resume Analysis", "💼 Job Search", "📊 Analysis History"])
-
+    tab1, tab2, tab3, tab4 = st.tabs(["📄 Resume Analysis", "🔎 Job Search", "🎯 Interview Preparation", "📊 Analysis History", ])
     with tab1:
         st.markdown("### Upload your resume and get AI-powered feedback")
 
@@ -618,6 +718,51 @@ def main_app():
             )
 
     with tab3:
+        st.subheader("🎯 Interview Preparation")
+        st.markdown("Generate 10-15 interview questions tailored to your job role or description.")
+
+        with st.form("interview_prep_form"):
+            job_title = st.text_input(
+                "Job Title",
+                placeholder="e.g., Software Engineer, Data Scientist, Project Manager"
+            )
+            job_description = st.text_area(
+                "Job Description (Optional)",
+                height=150,
+                placeholder="Paste the job description here for tailored questions..."
+            )
+            include_answers = st.radio(
+                "Include Answers?",
+                options=["Questions Only", "Questions with Answers"],
+                index=0
+            )
+            if st.form_submit_button("Generate Interview Questions", use_container_width=True):
+                if job_title.strip():
+                    with st.spinner("Generating interview questions..."):
+                        result = generate_interview_questions(
+                            job_title,
+                            job_description,
+                            include_answers="Questions with Answers" in include_answers
+                        )
+                        st.session_state['interview_questions'] = result.get('questions', [])
+                        if st.session_state['interview_questions']:
+                            st.success(f"Generated {len(st.session_state['interview_questions'])} interview questions!")
+                        else:
+                            st.error("No questions generated. Please try again.")
+                else:
+                    st.error("Please enter a job title!")
+
+        if 'interview_questions' in st.session_state and st.session_state['interview_questions']:
+            st.subheader("📋 Generated Interview Questions")
+            question_tabs = st.tabs([f"Question {i + 1}" for i in range(len(st.session_state['interview_questions']))])
+            for i, tab in enumerate(question_tabs):
+                with tab:
+                    question_data = st.session_state['interview_questions'][i]
+                    st.markdown(f"**Question {i + 1}:** {question_data['question']}")
+                    if 'answer' in question_data and question_data['answer']:
+                        st.markdown(f"**Answer:** {question_data['answer']}")
+
+    with tab4:
         st.subheader("📊 Your Analysis History")
         history = get_user_history(st.session_state.user['id'])
 
@@ -660,39 +805,105 @@ def main_app():
 
     # App information sections
     st.markdown("---")
-    with st.expander("How to Use This App"):
-        st.markdown("""
-        **Step-by-step guide:**
 
-        1. **Upload Resume**: Choose your resume file (PDF, DOCX, or TXT format)
-        2. **Add Job Description**: Paste the job description for targeted analysis (optional)
-        3. **Analyze**: Click the analyze button to get AI-powered feedback
-        4. **Review Results**: Check your strengths, weaknesses, and improvement suggestions
-        5. **Search Jobs**: Use the job search feature to find relevant opportunities
-        6. **Track Progress**: Monitor your improvement over time in the history section
-        """)
-
-    with st.expander("Privacy & Security"):
-        st.markdown("""
-        **Your data is safe with us:**
-
-        - **Resume Security**: We never store your uploaded resume files
-        - **User Data**: Only username, email, and analysis scores are saved
-        - **AI Processing**: Resume analysis is done securely through Google's Gemini API
-        - **Job Search**: Job listings are fetched from Jobicy API
-        - **Data Control**: You can request account deletion anytime
-
-        This tool is designed for educational and career development purposes only.
-        """)
 
     with st.container():
         # Display user info or welcome message
         if 'user' in st.session_state and st.session_state.user:
             st.success(f"Welcome, **{st.session_state.user['username']}**")
 
-        # Place the button in a div with the center-button class
+        with st.expander("How to Use This App"):
+            st.markdown("""
+                     **Step-by-step guide:**
+
+                     1. **Upload Resume**: Choose your resume file (PDF, DOCX, or TXT format)
+                     2. **Add Job Description**: Paste the job description for targeted analysis (optional)
+                     3. **Analyze**: Click the analyze button to get AI-powered feedback
+                     4. **Review Results**: Check your strengths, weaknesses, and improvement suggestions
+                     5. **Search Jobs**: Use the job search feature to find relevant opportunities
+                     6. **Prepare for Interviews**: Generate tailored interview questions in the Interview Prep tab
+                     7. **Track Progress**: Monitor your improvement over time in the history section
+                     """
+                        )
+
+        with st.expander("Privacy & Security"):
+            st.markdown("""
+             **Your data is safe with us:**
+
+             - **Resume Security**: We never store your uploaded resume files
+             - **User Data**: Only username, email, and analysis scores are saved
+             - **AI Processing**: Resume analysis is done securely through Google's Gemini API
+             - **Job Search**: Job listings are fetched from Jobicy API
+             - **Data Control**: You can request account deletion anytime
+
+             This tool is designed for educational and career development purposes only.
+             """)
+
+        # Password change form in an expander
+        with st.expander("Change Password"):
+            with st.form("change_password_form"):
+                current_password = st.text_input("Current Password", type="password")
+                new_password = st.text_input("New Password", type="password")
+                confirm_new_password = st.text_input("Confirm New Password", type="password")
+                if st.form_submit_button("Update Password"):
+                    if all([current_password, new_password, confirm_new_password]):
+                        if new_password != confirm_new_password:
+                            st.error("New passwords don't match!")
+                        elif len(new_password) < 6:
+                            st.error("New password must be at least 6 characters!")
+                        else:
+                            # Verify current password
+                            user = authenticate_user(st.session_state.user['username'], current_password)
+                            if user:
+                                # Update password
+                                if update_user_password(st.session_state.user['id'], new_password):
+                                    st.success("Password updated successfully!")
+                                else:
+                                    st.error("Failed to update password. Please try again.")
+                            else:
+                                st.error("Current password is incorrect!")
+                    else:
+                        st.error("Please fill in all fields!")
+
+        # Delete account form in an expander
+        with st.expander("Delete Account"):
+            st.warning(
+                "Warning: Deleting your account is permanent and cannot be undone. All your data, including analysis history, will be removed.")
+            with st.form("delete_account_form"):
+                delete_password = st.text_input("Enter Password to Confirm Deletion", type="password")
+                if st.form_submit_button("Delete My Account", type="secondary"):
+                    if delete_password:
+                        if delete_user_account(st.session_state.user['id'], delete_password):
+                            st.success("Account deleted successfully. You will be logged out.")
+                            if 'user' in st.session_state:
+                                del st.session_state.user
+                            st.rerun()
+                        else:
+                            st.error("Incorrect password or error deleting account. Please try again.")
+                    else:
+                        st.error("Please enter your password to confirm deletion!")
+
+        # Inject CSS to style the logout button as red
+        st.markdown("""
+            <style>
+            div.stButton > button[kind="primary"] {
+                background-color: #FF0000;
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 0.25rem;
+                font-weight: bold;
+            }
+            div.stButton > button[kind="primary"]:hover {
+                background-color: #CC0000;
+                color: white;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Place the logout button in a container
         with st.container():
-            if st.button("Logout"):
+            if st.button("Logout", type="primary"):
                 if 'user' in st.session_state:
                     del st.session_state.user
                 st.rerun()
